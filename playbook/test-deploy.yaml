@@ -1,0 +1,49 @@
+
+  
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: test
+  name: test
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: test
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+        resources: {}
+status: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    run: test
+  name: test-svc
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-0fe2244590b9b7543 # Update subnet ID to Data plane subnet ID
+    service.beta.kubernetes.io/aws-load-balancer-ip-address-type: ipv4
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type:  ip #instance # Change to instance or ip
+    # service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+    service.beta.kubernetes.io/aws-load-balancer-name: internal-services-lb
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    run: test
+  type: LoadBalancer
+status:
+  loadBalancer: {}

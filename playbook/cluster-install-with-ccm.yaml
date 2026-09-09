@@ -1,0 +1,408 @@
+## Testing for k8s v6
+
+- name: Set hostnames
+  hosts: all
+  become: true 
+  tasks:
+    - name: Set the hostname
+      ansible.builtin.hostname:
+        name: "{{ hostname }}"
+
+- name: Install Dependencies and Base Setup
+  hosts: kubernetes
+  become: yes
+  tasks:
+    - name: Disable swap
+      ansible.builtin.command: swapoff -a
+
+    - name: Comment out swap in fstab
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^([^#].* swap .*)$'
+        replace: '# \1'
+
+    - name: Load required kernel modules
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - overlay
+        - br_netfilter
+
+    - name: Set sysctl params for Kubernetes
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/kubernetes.conf
+        content: |
+          net.bridge.bridge-nf-call-iptables = 1
+          net.ipv4.ip_forward = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+
+    - name: Apply sysctl settings
+      ansible.builtin.command: sysctl --system
+
+    - name: Install required system & python dependencies
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - gpg
+          - python3-kubernetes
+          - python3-jsonpatch
+        state: present
+        update_cache: yes
+
+    - name: Ensure keyrings directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker GPG key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+
+    - name: Add Docker APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+
+    - name: Add Kubernetes APT repository key
+      ansible.builtin.get_url:
+        url: https://pkgs.k8s.io/core:/stable:/v1.36/deb/Release.key
+        dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+        mode: '0644'
+        force: yes
+
+    - name: Add Kubernetes APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/v1.36/deb/ /"
+        state: present
+        filename: kubernetes
+        update_cache: yes
+
+    - name: Install containerd, kubeadm, kubelet, and kubectl
+      ansible.builtin.apt:
+        name:
+          - containerd.io
+          - cri-tools
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+
+    - name: Prevent automatic upgrades for Kubernetes components
+      ansible.builtin.dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    - name: Configure containerd systemd cgroup driver
+      ansible.builtin.shell: |
+        mkdir -p /etc/containerd
+        containerd config default | sudo tee /etc/containerd/config.toml
+        sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+      notify: Restart containerd
+
+    - name: Configure Kubelet extra arguments for AWS CCM
+      ansible.builtin.copy:
+        dest: /etc/default/kubelet
+        content: |
+          KUBELET_EXTRA_ARGS="--cloud-provider=external --node-ip={{ ansible_default_ipv4.address }}"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart kubelet
+
+    - name: Configure crictl endpoints
+      ansible.builtin.copy:
+        dest: /etc/crictl.yaml
+        content: |
+          runtime-endpoint: unix:///run/containerd/containerd.sock
+          image-endpoint: unix:///run/containerd/containerd.sock
+          timeout: 10
+          debug: false
+        mode: '0644'
+
+    - name: Flush stale BIRD protocol routes from kernel table
+      ansible.builtin.command:
+        cmd: ip route flush proto bird
+      register: route_flush_result
+      changed_when: route_flush_result.rc == 0
+
+  handlers:
+    - name: Restart containerd
+      ansible.builtin.service:
+        name: containerd
+        state: restarted
+        enabled: yes
+
+    - name: Restart kubelet
+      ansible.builtin.systemd:
+        name: kubelet
+        state: restarted
+        daemon_reload: true
+
+## Bootstrap Master Node
+
+- name: Initialize Kubernetes Control Plane
+  hosts: master
+  become: true
+  tasks:
+    - name: Get IMDSv2 Token
+      ansible.builtin.uri:
+        url: "http://169.254.169.254/latest/api/token"
+        method: PUT
+        headers:
+          X-aws-ec2-metadata-token-ttl-seconds: "21600"
+        return_content: true
+      register: imds_token
+
+    - name: Fetch EC2 Instance ID
+      ansible.builtin.uri:
+        url: "http://169.254.169.254/latest/meta-data/instance-id"
+        headers:
+          X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+        return_content: true
+      register: ec2_instance_id_res
+
+    - name: Fetch EC2 Availability Zone
+      ansible.builtin.uri:
+        url: "http://169.254.169.254/latest/meta-data/placement/availability-zone"
+        headers:
+          X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+        return_content: true
+      register: ec2_az_res
+
+    - name: Set AWS metadata facts
+      ansible.builtin.set_fact:
+        ec2_instance_id: "{{ ec2_instance_id_res.content }}"
+        ec2_placement: "{{ ec2_az_res.content }}"
+
+    - name: Create kubeadm configuration for Master
+      ansible.builtin.copy:
+        dest: /tmp/kubeadm.yaml
+        mode: '0644'
+        content: |
+          apiVersion: kubeadm.k8s.io/v1beta4
+          kind: InitConfiguration
+          localAPIEndpoint:
+            advertiseAddress: "{{ ansible_default_ipv4.address }}"
+            bindPort: 6443
+          nodeRegistration:
+            name: "master"
+            criSocket: "unix:///run/containerd/containerd.sock"
+            imagePullPolicy: "IfNotPresent"
+            kubeletExtraArgs:
+              - name: "provider-id"
+                value: "aws:///{{ ec2_placement }}/{{ ec2_instance_id }}"
+              - name: "node-ip"
+                value: "{{ ansible_default_ipv4.address }}"
+              - name: "cloud-provider"
+                value: "external"
+          ---
+          apiVersion: kubeadm.k8s.io/v1beta4
+          kind: ClusterConfiguration
+          controlPlaneEndpoint: "{{ ansible_default_ipv4.address }}:6443"
+          clusterName: "kubernetes"
+          kubernetesVersion: "v1.36.4"
+          networking:
+            podSubnet: "10.244.0.0/16"
+            serviceSubnet: "10.96.0.0/12"
+          apiServer:
+            extraArgs: []
+          controllerManager:
+            extraArgs:
+              - name: "cloud-provider"
+                value: "external"
+          ---
+          apiVersion: kubelet.config.k8s.io/v1beta1
+          kind: KubeletConfiguration
+          cgroupDriver: "systemd"
+
+    - name: Initialize Kubernetes cluster
+      ansible.builtin.command:
+        cmd: kubeadm init --config /tmp/kubeadm.yaml
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Create .kube directory
+      ansible.builtin.file:
+        path: "/home/{{ ansible_env.SUDO_USER | default('ubuntu') }}/.kube"
+        state: directory
+        mode: '0755'
+        owner: "{{ ansible_env.SUDO_USER | default('ubuntu') }}"
+        group: "{{ ansible_env.SUDO_USER | default('ubuntu') }}"
+
+    - name: Copy admin.conf to kube config
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "/home/{{ ansible_env.SUDO_USER | default('ubuntu') }}/.kube/config"
+        remote_src: yes
+        owner: "{{ ansible_env.SUDO_USER | default('ubuntu') }}"
+        group: "{{ ansible_env.SUDO_USER | default('ubuntu') }}"
+        mode: '0644'
+
+    - name: Download Calico manifest
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml
+        dest: /tmp/calico.yaml
+        mode: '0644'
+
+    - name: Set CALICO_IPV4POOL_CIDR in Calico manifest
+      ansible.builtin.replace:
+        path: /tmp/calico.yaml
+        regexp: '192\.168\.0\.0/16'
+        replace: '10.244.0.0/16'
+
+    - name: Apply modified Calico Manifest
+      kubernetes.core.k8s:
+        state: present
+        src: /tmp/calico.yaml
+        kubeconfig: /etc/kubernetes/admin.conf
+
+    - name: Download Helm installer
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        dest: /tmp/get_helm.sh
+        mode: '0700'
+
+    - name: Execute Helm installer script
+      ansible.builtin.command:
+        cmd: /tmp/get_helm.sh
+        creates: /usr/local/bin/helm
+
+    - name: Add AWS Cloud Controller Manager Helm repository
+      kubernetes.core.helm_repository:
+        name: aws-cloud-controller-manager
+        repo_url: https://kubernetes.github.io/cloud-provider-aws
+        state: present
+
+    - name: Deploy AWS Cloud Controller Manager via Helm
+      kubernetes.core.helm:
+        name: aws-cloud-controller-manager
+        chart_ref: aws-cloud-controller-manager/aws-cloud-controller-manager
+        release_namespace: kube-system
+        state: present
+        kubeconfig: /etc/kubernetes/admin.conf
+        update_repo_cache: true
+        values:
+          args:
+            - "--v=2"
+            - "--cloud-provider=aws"
+            - "--configure-cloud-routes=false"
+          env:
+            - name: KUBERNETES_SERVICE_HOST
+              value: "{{ ansible_default_ipv4.address }}"
+            - name: KUBERNETES_SERVICE_PORT
+              value: "6443"
+
+    - name: Enable hostNetwork and set dnsConfig on aws-cloud-controller-manager
+      kubernetes.core.k8s_json_patch:
+        api_version: apps/v1
+        kind: DaemonSet
+        name: aws-cloud-controller-manager
+        namespace: kube-system
+        kubeconfig: /etc/kubernetes/admin.conf
+        patch:
+          - op: add
+            path: /spec/template/spec/hostNetwork
+            value: true
+          - op: add
+            path: /spec/template/spec/dnsConfig
+            value:
+              nameservers:
+                - 8.8.8.8
+                - 1.1.1.1
+
+## Join Worker Nodes
+
+- name: Print Join Token
+  hosts: master
+  become: true
+  tasks:
+    - name: Get kubeadm join command
+      ansible.builtin.command: kubeadm token create --print-join-command
+      register: join_command_raw
+      changed_when: false
+
+    - name: Extract token and hash
+      ansible.builtin.set_fact:
+        join_token: "{{ join_command_raw.stdout | regex_search('--token (\\S+)', '\\1') | first }}"
+        join_hash: "{{ join_command_raw.stdout | regex_search('--discovery-token-ca-cert-hash (\\S+)', '\\1') | first }}"
+        apiserver_endpoint: "{{ join_command_raw.stdout | regex_search('kubeadm join (\\S+)', '\\1') | first }}"
+
+- name: Join Worker Nodes to Cluster
+  hosts: workers
+  become: true
+  tasks:
+    - name: Disable UFW firewall
+      ansible.builtin.systemd:
+        name: ufw
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Get IMDSv2 Token
+      ansible.builtin.uri:
+        url: "http://169.254.169.254/latest/api/token"
+        method: PUT
+        headers:
+          X-aws-ec2-metadata-token-ttl-seconds: "21600"
+        return_content: true
+      register: imds_token
+    
+    - name: Fetch EC2 Instance ID
+      ansible.builtin.uri:
+        url: "http://169.254.169.254/latest/meta-data/instance-id"
+        headers:
+          X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+        return_content: true
+      register: ec2_instance_id_res
+
+    - name: Fetch EC2 Availability Zone
+      ansible.builtin.uri:
+        url: "http://169.254.169.254/latest/meta-data/placement/availability-zone"
+        headers:
+          X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+        return_content: true
+      register: ec2_az_res
+
+    - name: Set AWS metadata facts
+      ansible.builtin.set_fact:
+        ec2_instance_id: "{{ ec2_instance_id_res.content }}"
+        ec2_placement: "{{ ec2_az_res.content }}"
+
+    - name: Create kubeadm join config file
+      ansible.builtin.copy:
+        dest: /tmp/kubeadm-join.yaml
+        mode: '0600'
+        content: |
+          apiVersion: kubeadm.k8s.io/v1beta4
+          kind: JoinConfiguration
+          discovery:
+            bootstrapToken:
+              apiServerEndpoint: "{{ hostvars[groups['master'][0]]['apiserver_endpoint'] }}"
+              token: "{{ hostvars[groups['master'][0]]['join_token'] }}"
+              caCertHashes:
+                - "{{ hostvars[groups['master'][0]]['join_hash'] }}"
+          nodeRegistration:
+            kubeletExtraArgs:
+              - name: "cloud-provider"
+                value: "external"
+              - name: "provider-id"
+                value: "aws:///{{ ec2_placement }}/{{ ec2_instance_id }}"
+              - name: "node-ip"
+                value: "{{ ansible_default_ipv4.address }}"
+
+    - name: Join worker node to cluster
+      ansible.builtin.command:
+        cmd: kubeadm join --config /tmp/kubeadm-join.yaml
+        creates: /etc/kubernetes/kubelet.conf

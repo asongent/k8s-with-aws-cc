@@ -1,0 +1,20 @@
+aws_region            = "us-west-2"
+control_plane_sg_name = "control-plane"
+data_plane_sg_name    = "data-plane"
+workstation_sg_name   = "workstation-dev"
+key_pair              = "newgen"
+private_key_path      = "~/.ssh/newgen.pem"
+
+vpc_name           = "newgent-dev-network"
+vpc_cidr           = "192.168.0.0/16"
+control_plane_cidr = "192.168.1.0/24"
+data_plane_cidr    = "192.168.2.0/24"
+workstation_cidr   = "192.168.3.0/24"
+
+control_plane_subnet_name = "cocontrol-plane-dev"
+data_plane_subnet_name    = "data_plane-dev"
+workstation_subnet_name   = "workstion-dev"
+
+role_name             = "service-dev-role"
+policy_name           = "service-dev-policy"
+instance_profile_name = "service-role-dev"
