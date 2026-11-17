@@ -133,7 +133,7 @@ The playbook does not install Docker Engine. It installs the containerd runtime 
 
 5. **Configure Kubernetes APT Repository**
 
-The Kubernetes [repository](https://pkgs.k8s.io/core:/stable:/v1.36/deb/)for v1.36 is configured: You can update to your desired [Kubernetes release](https://kubernetes.io/releases/)
+The Kubernetes [repository](https://pkgs.k8s.io/core:/stable:/v1.36/deb/) for `v1.36` is configured: You can update to your desired [Kubernetes release](https://kubernetes.io/releases/)
 
 
 
@@ -235,7 +235,7 @@ ip route flush proto bird
 
 This removes stale routes associated with the BIRD routing protocol from the kernel routing table.
 
-This is particularly relevant when previous Calico/BIRD networking configuration has left stale routes behind.
+This is particularly relevant when previous Calico/BIRD networking configuration has left stale rouFtes behind.
 
 11. Bootstrap the Master Node
 
@@ -328,11 +328,7 @@ The default(`192.168.0.0/16`) is changed to `10.244.0.0/16`. This matches the po
 16. **Install Helm**
 
 The official Helm installation script is downloaded and executed.
-This installs:
-
-helm
-
-which is then used to deploy the AWS Cloud Controller Manager.
+This installs helm which is then used to deploy the AWS Cloud Controller Manager.
 
 17. **Install AWS Cloud Controller Manager**
 
@@ -343,22 +339,23 @@ The [AWS Cloud Controller Manager Helm repository](https://kubernetes.github.io/
 
 Kubernetes resources that depend on AWS infrastructure explicitly configures `--cloud-provider=aws`  and    `--configure-cloud-routes=false`
 
-18. **Configure AWS Cloud Controller Manager Networking**
+18. **Configuring AWS Cloud Controller Manager Networking**
 
-The deployed AWS Cloud Controller Manager DaemonSet is patched to use `ostNetwork: true`. It is also given explicit `DNS servers`
+The deployed `AWS Cloud Controller Manager DaemonSet` is patched to use `ostNetwork: true`. It is also given explicit `DNS servers`
 
-```
+```bash
 8.8.8.8
 1.1.1.1
 ```
-Using hostNetwork means that the AWS Cloud Controller Manager uses the host's network namespace instead of the normal Kubernetes pod network.
+Using hostNetwork means that the `AWS Cloud Controller Manager` uses the host's network namespace instead of the normal Kubernetes pod network.
 
 19. **Generate Worker Join Information**
 
 The master creates a temporary Kubernetes bootstrap token using the `kubeadm token create --print-join-command` command. 
 
 The resulting command looks conceptually like:
-```
+
+```bash
 kubeadm join <master-ip>:6443 \
   --token <token> \
   --discovery-token-ca-cert-hash <hash>
@@ -367,7 +364,7 @@ kubeadm join <master-ip>:6443 \
 
 The bellow information is extracted 
 
-```
+```bash
 join_token
 join_hash
 apiserver_endpoint
@@ -378,7 +375,7 @@ These values are made available to the `worker-node` only.
 
 The worker play runs against:
 
-hosts: workers
+`hosts: workers`
 
 
 It first disables the Ubuntu UFW firewall.
@@ -404,14 +401,17 @@ These are used to construct the worker's AWS provider ID.
 
 For example:
 
+```bash
 aws:///eu-west-1a/i-0123456789abcdef
+```
 
 22. Create Worker kubeadm Join Configuration
 
 Each worker gets:
 
+```bash
 /tmp/kubeadm-join.yaml
-
+```
 
 The file contains:
 
@@ -434,14 +434,14 @@ This allows the worker to identify and authenticate with the Kubernetes control 
 
 Finally, each worker executes:
 
+```bash
 kubeadm join --config /tmp/kubeadm-join.yaml
-
-
+```
 This registers the worker with the Kubernetes cluster.
 
 The playbook uses:
 
-creates: /etc/kubernetes/kubelet.conf
+creates: `/etc/kubernetes/kubelet.conf`
 
 
 so the join command is skipped if the node has already successfully joined.
