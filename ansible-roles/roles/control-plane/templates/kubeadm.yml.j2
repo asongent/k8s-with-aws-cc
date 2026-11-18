@@ -4,7 +4,7 @@ localAPIEndpoint:
   advertiseAddress: "{{ ansible_default_ipv4.address }}"
   bindPort: 6443
 nodeRegistration:
-  name: "master"
+  name: "{{ hostname }}"
   criSocket: "unix:///run/containerd/containerd.sock"
   imagePullPolicy: "IfNotPresent"
   kubeletExtraArgs:
