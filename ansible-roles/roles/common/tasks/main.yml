@@ -1,0 +1,56 @@
+---
+- name: Set the hostname
+  ansible.builtin.hostname:
+    name: "{{ hostname }}"
+
+- name: Disable swap
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+
+- name: Comment out swap in fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].* swap .*)$'
+    replace: '# \1'
+
+- name: Load required kernel modules
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Set sysctl params for Kubernetes
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/kubernetes.conf
+    mode: '0644'
+    content: |
+      net.bridge.bridge-nf-call-iptables = 1
+      net.ipv4.ip_forward = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+
+- name: Apply sysctl settings
+  ansible.builtin.command: sysctl --system
+  changed_when: false
+
+- name: Install required system & python dependencies
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - gpg
+      - python3-kubernetes
+      - python3-jsonpatch
+    state: present
+    update_cache: true
+
+- name: Flush stale BIRD protocol routes from kernel table
+  ansible.builtin.command:
+    cmd: ip route flush proto bird
+  register: route_flush_result
+  changed_when: route_flush_result.rc == 0
+  failed_when: false

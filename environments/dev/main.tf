@@ -1,16 +1,3 @@
-terraform {
-  required_version = ">= 1.0.0"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = var.aws_region
-}
 
 module "vpc" {
   source   = "../../modules/vpc"
@@ -50,6 +37,8 @@ module "iam" {
 
 module "servers" {
   source                  = "../../modules/servers"
+  control_plane_count     = var.control_plane_count
+  data_plane_count        = var.data_plane_count
   key_pair                = var.key_pair
   workstation_subnet_id   = module.subnets.workstation_subnet_id
   control_plane_subnet_id = module.subnets.control_plane_subnet_id

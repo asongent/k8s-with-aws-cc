@@ -1,0 +1,34 @@
+---
+- name: Add AWS EBS CSI Driver Helm repository
+  kubernetes.core.helm_repository:
+    name: aws-ebs-csi-driver
+    repo_url: https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+    state: present
+
+- name: Install AWS EBS CSI Driver via Helm
+  kubernetes.core.helm:
+    name: aws-ebs-csi-driver
+    chart_ref: aws-ebs-csi-driver/aws-ebs-csi-driver
+    release_namespace: kube-system
+    update_repo_cache: true
+    state: present
+    kubeconfig: /etc/kubernetes/admin.conf
+  
+
+- name: Create default EBS StorageClass (ebs-sc)
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: /etc/kubernetes/admin.conf
+    definition:
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: ebs-sc
+        annotations:
+          storageclass.kubernetes.io/is-default-class: 'true'
+      provisioner: ebs.csi.aws.com
+      volumeBindingMode: WaitForFirstConsumer
+      parameters:
+        type: gp3
+      reclaimPolicy: Delete # Retain
+      allowVolumeExpansion: true

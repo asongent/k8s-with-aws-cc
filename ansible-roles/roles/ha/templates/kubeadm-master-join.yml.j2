@@ -1,0 +1,23 @@
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: JoinConfiguration
+discovery:
+  bootstrapToken:
+    apiServerEndpoint: "{{ master_join_cmd.stdout.split()[2] }}"
+    token: "{{ master_join_cmd.stdout.split()[4] }}"
+    caCertHashes:
+      - "{{ master_join_cmd.stdout.split()[6] }}"
+controlPlane:
+  localAPIEndpoint:
+    advertiseAddress: "{{ ansible_default_ipv4.address }}"
+    bindPort: 6443
+  certificateKey: "{{ upload_certs_raw.stdout_lines[-1] }}"
+nodeRegistration:
+  name: "{{ hostname }}"
+  criSocket: "unix:///run/containerd/containerd.sock"
+  kubeletExtraArgs:
+    - name: "provider-id"
+      value: "aws:///{{ ec2_placement }}/{{ ec2_instance_id }}"
+    - name: "node-ip"
+      value: "{{ ansible_default_ipv4.address }}"
+    - name: "cloud-provider"
+      value: "external"

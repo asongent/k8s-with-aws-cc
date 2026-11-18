@@ -1,1 +1,23 @@
- playbook/install.md
+# Terraform state, caches, and variable overrides
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ansible retry files & dynamic artifacts
+*.retry
+.ansible/
+
+# SSH keys & Kubernetes credentials
+*.pem
+*.key
+kubeconfig
+*admin.conf

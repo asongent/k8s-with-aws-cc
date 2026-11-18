@@ -9,11 +9,16 @@ output "workstation_private_ip" {
 }
 
 output "control_plane_private_ip" {
-  description = "Private IP of the control-plane instance"
-  value       = aws_instance.control_plane.private_ip
+  description = "Map of private IPs for all worker control_plane"
+  value = {
+    for instance in aws_instance.control_plane : instance.tags["Name"] => instance.private_ip
+  }
 }
+
 
 output "worker_nodes_private_ips" {
   description = "Map of private IPs for all worker nodes"
-  value       = { for name, instance in aws_instance.nodes : name => instance.private_ip }
+  value = {
+    for instance in aws_instance.nodes : instance.tags["Name"] => instance.private_ip
+  }
 }

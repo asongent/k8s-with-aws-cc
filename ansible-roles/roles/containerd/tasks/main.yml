@@ -1,0 +1,66 @@
+---
+- name: Ensure keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Download Docker GPG key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+    
+- name: Add Docker APT repository
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: deb
+    uris: https://docker.com
+    suites: "{{ ansible_distribution_release }}"
+    components: stable
+    architectures: "{{ ansible_architecture | replace('x86_64', 'amd64') }}"
+    signed_by: https://docker.com/gpg
+    state: present
+
+# - name: Add Docker APT repository
+#   ansible.builtin.apt_repository:
+#     repo: "deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+#     state: present
+#     filename: docker
+
+- name: Install containerd and cri-tools
+  ansible.builtin.apt:
+    name:
+      - containerd.io
+      - cri-tools
+    state: present
+    update_cache: true
+
+- name: Ensure /etc/containerd directory exists
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+    mode: '0755'
+
+- name: Generate default containerd config if missing
+  ansible.builtin.shell: containerd config default > /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
+  notify: Restart containerd
+
+- name: Enable SystemdCgroup in containerd
+  ansible.builtin.replace:
+    path: /etc/containerd/config.toml
+    regexp: 'SystemdCgroup = false'
+    replace: 'SystemdCgroup = true'
+  notify: Restart containerd
+
+- name: Configure crictl endpoints
+  ansible.builtin.copy:
+    dest: /etc/crictl.yaml
+    mode: '0644'
+    content: |
+      runtime-endpoint: unix:///run/containerd/containerd.sock
+      image-endpoint: unix:///run/containerd/containerd.sock
+      timeout: 10
+      debug: false

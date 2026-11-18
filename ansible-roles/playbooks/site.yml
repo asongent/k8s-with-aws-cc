@@ -1,0 +1,92 @@
+---
+# STAGE 1: Base Operating System Setup (Master + Workers)
+- name: 1. Prepare OS prerequisites on all hosts
+  hosts: all
+  become: true
+  roles:
+    - common
+
+# STAGE 2: Container Runtime & Kubernetes Binaries (Master + Workers)
+- name: 2. Install containerd and Kubernetes binaries on all nodes
+  hosts: kubernetes
+  become: true
+  roles:
+    - containerd
+    - k8s-binaries
+
+# STAGE 3: Control Plane Initialization & Core Networking (Master Only)
+- name: 3. Bootstrap Control Plane, InstallCalico CNI, and AWS CCM
+  hosts: master
+  become: true
+  roles:
+    - control-plane
+
+# STAGE 4: Worker Node Registration (Workers Only)
+- name: 4. Join worker nodes to the Kubernetes cluster
+  hosts: workers
+  become: true
+  roles:
+    - worker-nodes
+
+# STAGE 5: Cluster Storage Add-ons (Master Only, after workers are Ready)
+- name: 5. Deploy AWS EBS CSI Driver and default StorageClass
+  hosts: master
+  become: true
+  roles:
+    - storage
+
+
+
+
+# ---
+# - name: Prepare all hosts
+#   hosts: all
+#   become: true
+#   roles:
+#     - common
+
+# - name: Configure runtime and Kubernetes binaries on all cluster nodes
+#   hosts: kubernetes
+#   become: true
+#   roles:
+#     - containerd
+#     - data-plane
+
+# - name: Bootstrap Kubernetes Master and Add-ons
+#   hosts: master
+#   become: true
+#   roles:
+#     - control-plane 
+
+# ###
+# ---
+# - name: 1. Prepare all hosts
+#   hosts: all
+#   become: true
+#   roles:
+#     - common
+
+# - name: 2. Configure runtime and Kubernetes binaries on all cluster nodes
+#   hosts: kubernetes
+#   become: true
+#   roles:
+#     - containerd
+#     - data-plane
+
+# - name: 3. Bootstrap Kubernetes Master, CNI, and AWS CCM
+#   hosts: master
+#   become: true
+#   roles:
+#     - control-plane
+
+# - name: 4. Join Worker Nodes to the Cluster
+#   hosts: workers
+#   become: true
+#   roles:
+#     - join-workers
+
+# - name: 5. Deploy Storage Drivers (AWS EBS CSI & StorageClass)
+#   hosts: master
+#   become: true
+#   roles:
+#     - ebs-csi

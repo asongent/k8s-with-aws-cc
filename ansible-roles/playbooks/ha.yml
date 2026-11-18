@@ -1,0 +1,37 @@
+---
+- name: 1. Prepare OS prerequisites on all hosts
+  hosts: all
+  become: true
+  roles:
+    - common
+
+- name: 2. Install containerd and Kubernetes binaries on all nodes
+  hosts: kubernetes
+  become: true
+  roles:
+    - containerd
+    - k8s-binaries
+
+- name: 3. Bootstrap Primary Control Plane, Calico CNI, and AWS CCM
+  hosts: master[0]
+  become: true
+  roles:
+    - control-plane
+
+- name: 4. Join Secondary Control Plane Nodes (HA)
+  hosts: master[1:]
+  become: true
+  roles:
+    - ha
+
+- name: 5. Join worker nodes to the Kubernetes cluster
+  hosts: workers
+  become: true
+  roles:
+    - worker-nodes
+
+- name: 6. Deploy AWS EBS CSI Driver and default StorageClass
+  hosts: master[0]
+  become: true
+  roles:
+    - storage

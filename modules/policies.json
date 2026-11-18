@@ -39,11 +39,11 @@ cat <<'EOF' > aws-ccm-policy.json
 }
 EOF
 
-# 2. Put the inline policy onto the role
-aws iam put-role-policy \
-  --role-name service-dev-role \
-  --policy-name AWSCloudControllerManagerPolicy \
-  --policy-document file://aws-ccm-policy.json
+// # 2. Put the inline policy onto the role
+// aws iam put-role-policy \
+//   --role-name service-dev-role \
+//   --policy-name AWSCloudControllerManagerPolicy \
+//   --policy-document file://aws-ccm-policy.json
 
-# 3. Clean up local json file
-rm -f aws-ccm-policy.json
+// # 3. Clean up local json file
+// rm -f aws-ccm-policy.json

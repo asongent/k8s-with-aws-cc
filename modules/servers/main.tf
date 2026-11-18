@@ -92,6 +92,7 @@ resource "aws_instance" "workstation" {
 
 # Control Plane
 resource "aws_instance" "control_plane" {
+  count                       = var.control_plane_count
   ami                         = data.aws_ami.ubuntu_2404.id
   instance_type               = "t3.medium"
   key_name                    = var.key_pair       
@@ -100,15 +101,15 @@ resource "aws_instance" "control_plane" {
   associate_public_ip_address = false
   iam_instance_profile        = var.instance_profile_name
 
-  tags = { 
-    Name = "control-plane" 
-    "kubernetes.io/cluster/kubernetes"       = "owned"
-    }
+   tags = {
+    Name                               = format("master-%02d", count.index + 1)
+    "kubernetes.io/cluster/kubernetes" = "owned"
+  }
 }
 
 # Data Plane Nodes
 resource "aws_instance" "nodes" {
-  for_each                    = toset(["node-01", "node-02", "node-03", "node-04"])
+  count                       = var.data_plane_count
   ami                         = data.aws_ami.ubuntu_2404.id
   key_name                    = var.key_pair
   instance_type               = "t3.medium"
@@ -117,7 +118,7 @@ resource "aws_instance" "nodes" {
   associate_public_ip_address = false
   iam_instance_profile        = var.instance_profile_name
   tags   = { 
-    Name = each.key
+    Name                                     = format("node-%02d", count.index + 1)
     "kubernetes.io/role/internal-elb"        = "1"
     "kubernetes.io/cluster/kubernetes"       = "owned"
    }

@@ -1,3 +1,8 @@
+data "aws_iam_policy" "ebs_csi_driver" {
+  name = "AmazonEBSCSIDriverPolicy"
+}
+
+## Policies
 resource "aws_iam_policy" "services_policy" {
   name        = var.policy_name
   description = "Permissions for EBS, ELB, Target Groups, and S3 access"
@@ -24,9 +29,9 @@ resource "aws_iam_policy" "services_policy" {
   })
 }
 
+## Roles
 resource "aws_iam_role" "services_role" {
   name = var.role_name
-
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -37,11 +42,18 @@ resource "aws_iam_role" "services_role" {
   })
 }
 
+## Policies Attachments
+resource "aws_iam_role_policy_attachment" "ebs_csi_driver" {
+  role       = aws_iam_role.services_role.name
+  policy_arn = data.aws_iam_policy.ebs_csi_driver.arn
+}
+
 resource "aws_iam_role_policy_attachment" "attach_custom" {
   role       = aws_iam_role.services_role.name
   policy_arn = aws_iam_policy.services_policy.arn
 }
 
+## Instance Profile
 resource "aws_iam_instance_profile" "profile" {
   name = "services-role-profile"
   role = aws_iam_role.services_role.name

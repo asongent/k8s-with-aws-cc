@@ -1,0 +1,36 @@
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: "{{ ansible_default_ipv4.address }}"
+  bindPort: 6443
+nodeRegistration:
+  name: "master"
+  criSocket: "unix:///run/containerd/containerd.sock"
+  imagePullPolicy: "IfNotPresent"
+  kubeletExtraArgs:
+    - name: "provider-id"
+      value: "aws:///{{ ec2_placement }}/{{ ec2_instance_id }}"
+    - name: "node-ip"
+      value: "{{ ansible_default_ipv4.address }}"
+    - name: "cloud-provider"
+      value: "external"
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+#controlPlaneEndpoint: "{{ ansible_default_ipv4.address }}:6443"
+controlPlaneEndpoint: "{{ control_plane_endpoint | default(ansible_default_ipv4.address + ':6443') }}"
+clusterName: "kubernetes"
+kubernetesVersion: "{{ k8s_version }}"
+networking:
+  podSubnet: "{{ pod_subnet }}"
+  serviceSubnet: "{{ service_subnet }}"
+apiServer:
+  extraArgs: []
+controllerManager:
+  extraArgs:
+    - name: "cloud-provider"
+      value: "external"
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+cgroupDriver: "systemd"

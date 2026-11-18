@@ -29,3 +29,14 @@ variable "private_key_path" {}
 variable "role_name" {}
 variable "policy_name" {}
 variable "instance_profile_name" {}
+variable "control_plane_count" {
+  description = "Number of Kubernetes control plane nodes (use 1 for dev, 3 for HA)"
+  type        = number
+  default     = 1
+
+}
+variable "data_plane_count" {
+  description = "Number of Kubernetes data plane nodes"
+  type        = number
+  default     = 1
+}

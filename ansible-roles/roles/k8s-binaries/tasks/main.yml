@@ -1,0 +1,40 @@
+---
+- name: Add Kubernetes APT repository
+  ansible.builtin.deb822_repository:
+    name: kubernetes
+    types: deb
+    uris: "https://k8s.io{{ k8s_repo_version | default('v1.36') }}/deb/"
+    suites: /
+    signed_by: "https://k8s.io{{ k8s_repo_version | default('v1.36') }}/deb/Release.key"
+    state: present
+
+- name: Update APT cache after adding Kubernetes repository
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install kubeadm, kubelet, and kubectl
+  ansible.builtin.apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+
+- name: Prevent automatic upgrades for Kubernetes components
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl
+
+- name: Configure Kubelet extra arguments for AWS CCM
+  ansible.builtin.copy:
+    dest: /etc/default/kubelet
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      KUBELET_EXTRA_ARGS="--cloud-provider=external --node-ip={{ ansible_default_ipv4.address }}"
+  notify: Restart kubelet

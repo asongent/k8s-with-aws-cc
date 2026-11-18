@@ -1,0 +1,66 @@
+---
+- name: Get IMDSv2 Token
+  ansible.builtin.uri:
+    url: "http://169.254.169.254/latest/api/token"
+    method: PUT
+    headers:
+      X-aws-ec2-metadata-token-ttl-seconds: "21600"
+    return_content: true
+  register: imds_token
+
+- name: Fetch EC2 Instance ID
+  ansible.builtin.uri:
+    url: "http://169.254.169.254/latest/meta-data/instance-id"
+    headers:
+      X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+    return_content: true
+  register: ec2_instance_id_res
+
+- name: Fetch EC2 Availability Zone
+  ansible.builtin.uri:
+    url: "http://169.254.169.254/latest/meta-data/placement/availability-zone"
+    headers:
+      X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+    return_content: true
+  register: ec2_az_res
+
+- name: Set AWS metadata facts
+  ansible.builtin.set_fact:
+    ec2_instance_id: "{{ ec2_instance_id_res.content }}"
+    ec2_placement: "{{ ec2_az_res.content }}"
+
+- name: Render kubeadm configuration for Master
+  ansible.builtin.template:
+    src: kubeadm.yaml.j2
+    dest: /tmp/kubeadm.yaml
+    mode: '0644'
+
+- name: Initialize Kubernetes cluster
+  ansible.builtin.command:
+    cmd: kubeadm init --config /tmp/kubeadm.yaml
+    creates: /etc/kubernetes/admin.conf
+
+- name: Create .kube directory
+  ansible.builtin.file:
+    path: "/home/{{ ansible_env.SUDO_USER | default('ubuntu') }}/.kube"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_env.SUDO_USER | default('ubuntu') }}"
+    group: "{{ ansible_env.SUDO_USER | default('ubuntu') }}"
+
+- name: Copy admin.conf to kube config
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "/home/{{ ansible_env.SUDO_USER | default('ubuntu') }}/.kube/config"
+    remote_src: true
+    owner: "{{ ansible_env.SUDO_USER | default('ubuntu') }}"
+    group: "{{ ansible_env.SUDO_USER | default('ubuntu') }}"
+    mode: '0644'
+
+- name: Download Calico manifest
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/calico.yaml"
+    dest: /tmp/calico.yaml
+    mode: '0644'
+
+# Paste the rest of your truncated master tasks (Calico apply, AWS CCM, EBS CSI Driver, ebs-sc StorageClass) here

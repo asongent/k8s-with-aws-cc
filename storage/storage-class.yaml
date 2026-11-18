@@ -1,0 +1,15 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-sc
+  annotations:
+    storageclass.kubernetes.io/is-default-class: 'true'
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  type: gp3
+reclaimPolicy: Delete # Retain  
+# Type if reclaim policy depends on your use case. 
+# If you want to retain the data after deleting the PVC, use Retain. 
+# If you want to delete the data along with the PVC, use Delete.
+allowVolumeExpansion: true
