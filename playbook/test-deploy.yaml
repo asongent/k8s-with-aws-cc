@@ -27,27 +27,71 @@ status: {}
 apiVersion: v1
 kind: Service
 metadata:
+  name: test-svc
+  labels:
+    run: test
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-subnets: "subnet-0487ca4df56af19d0"
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "instance"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+spec:
+  type: LoadBalancer
+  selector:
+    app: test
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
   labels:
     run: test
   name: test-svc
   annotations:
-    service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-0fe2244590b9b7543 # Update subnet ID to Data plane subnet ID
-    service.beta.kubernetes.io/aws-load-balancer-ip-address-type: ipv4
-    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type:  ip #instance # Change to instance or ip
-    # service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
-    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
-    service.beta.kubernetes.io/aws-load-balancer-name: internal-services-lb
-    # Add the cross-zone annotation to your Kubernetes service manifest to enable cross-zone load balancing for your NLB. 
-    # This annotation is only applicable for NLBs and is not required for Classic Load Balancers or Application Load Balancers.
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "instance"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    service.beta.kubernetes.io/aws-load-balancer-subnets: "subnet-0487ca4df56af19d0"
     service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
-
 spec:
   ports:
   - port: 80
     protocol: TCP
     targetPort: 80
   selector:
-    run: test
+    app: test
   type: LoadBalancer
-status:
-  loadBalancer: {}
+
+
+---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   labels:
+#     run: test
+#   name: test-svc
+#   annotations:
+#     service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-0fe2244590b9b7543 # Update subnet ID to Data plane subnet ID
+#     service.beta.kubernetes.io/aws-load-balancer-ip-address-type: ipv4
+#     service.beta.kubernetes.io/aws-load-balancer-nlb-target-type:  ip #instance # Change to instance or ip
+#     # service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+#     service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+#     service.beta.kubernetes.io/aws-load-balancer-name: internal-services-lb
+#     # Add the cross-zone annotation to your Kubernetes service manifest to enable cross-zone load balancing for your NLB. 
+#     # This annotation is only applicable for NLBs and is not required for Classic Load Balancers or Application Load Balancers.
+#     service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+
+# spec:
+#   ports:
+#   - port: 80
+#     protocol: TCP
+#     targetPort: 80
+#   selector:
+#     run: test
+#   type: LoadBalancer
+# status:
+#   loadBalancer: {}

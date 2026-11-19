@@ -7,3 +7,10 @@ variable "data_plane_subnet_name" {}
 variable "workstation_subnet_name" {}
 
 variable "internet_gateway_id" {}
+
+
+
+variable "availability_zone" {
+  description = "Availability Zone for the subnets"
+  type        = string
+}

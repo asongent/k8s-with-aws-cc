@@ -6,14 +6,16 @@ module "vpc" {
 
 }
 
+
 module "subnets" {
   source                    = "../../modules/subnets"
   vpc_id                    = module.vpc.vpc_id
   internet_gateway_id       = module.vpc.igw_id
+  availability_zone         = var.availability_zone
   control_plane_cidr        = var.control_plane_cidr
   data_plane_cidr           = var.data_plane_cidr
   workstation_cidr          = var.workstation_cidr
-  control_plane_subnet_name = var.control_plane_sg_name
+  control_plane_subnet_name = var.control_plane_subnet_name
   data_plane_subnet_name    = var.data_plane_subnet_name
   workstation_subnet_name   = var.workstation_subnet_name
   depends_on                = [module.vpc]

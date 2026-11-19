@@ -7,6 +7,8 @@ variable "vpc_cidr" {}
 variable "control_plane_cidr" {}
 variable "data_plane_cidr" {}
 variable "workstation_cidr" {}
+#variable "public_lb_cidr" {}
+
 
 variable "control_plane_subnet_name" {}
 variable "data_plane_subnet_name" {}
@@ -40,3 +42,6 @@ variable "data_plane_count" {
   type        = number
   default     = 1
 }
+
+
+variable "availability_zone" {}

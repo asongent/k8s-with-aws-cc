@@ -1,20 +1,21 @@
-### Subnets
 # 1. Control Plane Subnet
-
 resource "aws_subnet" "control_plane" {
   vpc_id                  = var.vpc_id
   cidr_block              = var.control_plane_cidr
+  availability_zone       = var.availability_zone
   map_public_ip_on_launch = false
-  tags = { 
-    "kubernetes.io/role/internal-elb"        = "1"
-    "kubernetes.io/cluster/kubernetes"       = "owned"
-     Name = var.control_plane_subnet_name                           }
+  tags = {
+    "kubernetes.io/role/internal-elb"  = "1"
+    "kubernetes.io/cluster/kubernetes" = "owned"
+    Name                               = var.control_plane_subnet_name
+  }
 }
 
 # 2. Data Plane Subnet
 resource "aws_subnet" "data_plane" {
   vpc_id                  = var.vpc_id
   cidr_block              = var.data_plane_cidr
+  availability_zone       = var.availability_zone
   map_public_ip_on_launch = false
   tags = {
     Name                               = var.data_plane_subnet_name
@@ -26,13 +27,15 @@ resource "aws_subnet" "data_plane" {
 resource "aws_subnet" "workstation" {
   vpc_id                  = var.vpc_id
   cidr_block              = var.workstation_cidr
+  availability_zone       = var.availability_zone
   map_public_ip_on_launch = true
-  tags = { 
-    Name = var.workstation_subnet_name 
-    "kubernetes.io/role/elb"                 = "1"
-    "kubernetes.io/cluster/kubernetes"       = "owned"
-    }
+  tags = {
+    Name                               = var.workstation_subnet_name
+    "kubernetes.io/role/elb"           = "1"
+    "kubernetes.io/cluster/kubernetes" = "owned"
+  }
 }
+
 
 # NAT Gateway & Elastic IP
 resource "aws_eip" "nat_eip" {

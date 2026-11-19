@@ -5,10 +5,10 @@
     state: directory
     mode: '0755'
     
-- name: Remove any corrupt Docker GPG key
-  ansible.builtin.file:
-    path: /etc/apt/keyrings/docker.asc
-    state: absent
+# - name: Remove any corrupt Docker GPG key
+#   ansible.builtin.file:
+#     path: /etc/apt/keyrings/docker.asc
+#     state: absent
 
 - name: Download Docker GPG key
   ansible.builtin.get_url:
