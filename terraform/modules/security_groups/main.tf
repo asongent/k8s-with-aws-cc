@@ -1,4 +1,5 @@
-# Workstation SG
+## Security Groups
+# 1. Workstation SG
 resource "aws_security_group" "workstation" {
   name        = var.workstation_sg_name
   description = "Workstation security group"
@@ -21,7 +22,7 @@ resource "aws_security_group" "workstation" {
   tags = { Name = "workstation" }
 }
 
-# Control-Plane SG
+# 2. Control-Plane SG
 resource "aws_security_group" "control_plane" {
   name        = var.control_plane_sg_name
   description = "Kubernetes Control Plane Security Group"
@@ -57,7 +58,7 @@ resource "aws_security_group" "control_plane" {
   tags = { Name = "control_plane" }
 }
 
-# Data-Plane SG
+# 3. Data-Plane SG
 resource "aws_security_group" "data_plane" {
   name        = var.data_plane_sg_name
   description = "Kubernetes Worker Nodes Security Group"
@@ -120,6 +121,17 @@ resource "aws_security_group_rule" "data_plane_self" {
   self                     = true
   description              = "Allow intra-worker communication"
 }
+
+resource "aws_security_group_rule" "data_plane_nodeport_public" {
+  type              = "ingress"
+  from_port         = 30000
+  to_port           = 32767
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.data_plane.id
+  description       = "Allow external client traffic via NLB to NodePorts"
+}
+
 
 # # OpenVPN Access Server Security Group
 # resource "aws_security_group" "openvpn" {

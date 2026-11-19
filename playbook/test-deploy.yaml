@@ -37,6 +37,10 @@ metadata:
     # service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
     service.beta.kubernetes.io/aws-load-balancer-internal: "true"
     service.beta.kubernetes.io/aws-load-balancer-name: internal-services-lb
+    # Add the cross-zone annotation to your Kubernetes service manifest to enable cross-zone load balancing for your NLB. 
+    # This annotation is only applicable for NLBs and is not required for Classic Load Balancers or Application Load Balancers.
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+
 spec:
   ports:
   - port: 80
