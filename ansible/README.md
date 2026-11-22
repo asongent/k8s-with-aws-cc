@@ -173,7 +173,7 @@ service_subnet: "10.96.0.0/12"
 calico_version: "v3.33.1"
 
 # Required for HA: AWS NLB DNS routing TCP 6443 to all control-plane nodes
-control_plane_endpoint: "://amazonaws.com"
+control_plane_endpoint: "k8s-api-nlb-66ed0331ac1adf1b.elb.us-west-2.amazonaws.com:6443"
 ```
 
 ### 3. Run the HA Deployment
@@ -192,16 +192,26 @@ ansible-playbook ../../playbooks/ha.yml
 
 SSH into your primary master node (or run via Ansible ad-hoc commands) to verify cluster health:
 
-```bash
-# 1. Verify all control-plane and worker nodes are Ready (AWS CCM removed uninitialized taints)
-kubectl get nodes -o wide
 
-# 2. Verify system pods (Calico, CoreDNS, AWS CCM, EBS CSI Controller/Node) are Running
-kubectl get pods -n kube-system
+- 1. Verify all control-plane and worker nodes are Ready (AWS CCM removed uninitialized taints)
 
-# 3. Verify the default gp3 StorageClass is active
-kubectl get sc
-```
+`kubectl get nodes -o wide`
+
+![](img/ha-cluster.png)
+
+- 2. Verify system pods (Calico, CoreDNS, AWS CCM, EBS CSI Controller/Node) are Running
+
+`kubectl get pods -n kube-system`
+
+![](img/all-pod.png)
+
+- 3. Verify the default gp3 StorageClass is active
+
+![](img/sc.png)
+
+- 4. Deploy and verify other resources(persistent volume/claim, pods and load balancer type service)
+
+![](img/verify-resources.png)
 
 ---
 
