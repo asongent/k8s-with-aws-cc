@@ -17,6 +17,7 @@ resource "aws_lb_target_group" "k8s_api" {
   protocol    = "TCP"
   vpc_id      = module.vpc.vpc_id
   target_type = "ip"
+  preserve_client_ip = false
 
   health_check {
     protocol            = "TCP"

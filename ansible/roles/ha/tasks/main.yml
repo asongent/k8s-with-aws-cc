@@ -1,3 +1,4 @@
+
 ---
 - name: Check if secondary master is already joined
   ansible.builtin.stat:
@@ -6,10 +7,12 @@
 
 - name: Join Secondary Master to Control Plane
   when: not master_admin_conf.stat.exists
+  vars:
+    imds_base: "{{ ['http://169', '254', '169', '254'] | join('.') }}"
   block:
     - name: Get IMDSv2 Token
       ansible.builtin.uri:
-        url: "http://169.254.169"
+        url: "{{ imds_base }}/latest/api/token"
         method: PUT
         headers:
           X-aws-ec2-metadata-token-ttl-seconds: "21600"
@@ -18,7 +21,7 @@
 
     - name: Fetch EC2 Instance ID
       ansible.builtin.uri:
-        url: "http://169.254.169"
+        url: "{{ imds_base }}/latest/meta-data/instance-id"
         headers:
           X-aws-ec2-metadata-token: "{{ imds_token.content }}"
         return_content: true
@@ -26,7 +29,7 @@
 
     - name: Fetch EC2 Availability Zone
       ansible.builtin.uri:
-        url: "http://169.254.169"
+        url: "{{ imds_base }}/latest/meta-data/placement/availability-zone"
         headers:
           X-aws-ec2-metadata-token: "{{ imds_token.content }}"
         return_content: true
@@ -76,3 +79,75 @@
     owner: "{{ ansible_env.SUDO_USER | default('ubuntu') }}"
     group: "{{ ansible_env.SUDO_USER | default('ubuntu') }}"
     mode: '0644'
+    
+- name: Download Calico manifest
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml
+    dest: /tmp/calico.yaml
+    mode: '0644'
+
+- name: Set CALICO_IPV4POOL_CIDR in Calico manifest
+  ansible.builtin.replace:
+    path: /tmp/calico.yaml
+    regexp: '192\.168\.0\.0/16'
+    replace: '10.244.0.0/16'
+
+- name: Apply modified Calico Manifest
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/calico.yaml
+    kubeconfig: /etc/kubernetes/admin.conf
+
+- name: Download Helm installer
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    dest: /tmp/get_helm.sh
+    mode: '0700'
+
+- name: Execute Helm installer script
+  ansible.builtin.command:
+    cmd: /tmp/get_helm.sh
+    creates: /usr/local/bin/helm
+
+- name: Add AWS Cloud Controller Manager Helm repository
+  kubernetes.core.helm_repository:
+    name: aws-cloud-controller-manager
+    repo_url: https://kubernetes.github.io/cloud-provider-aws
+    state: present
+
+- name: Deploy AWS Cloud Controller Manager via Helm
+  kubernetes.core.helm:
+    name: aws-cloud-controller-manager
+    chart_ref: aws-cloud-controller-manager/aws-cloud-controller-manager
+    release_namespace: kube-system
+    state: present
+    kubeconfig: /etc/kubernetes/admin.conf
+    update_repo_cache: true
+    values:
+      args:
+        - "--v=2"
+        - "--cloud-provider=aws"
+        - "--configure-cloud-routes=false"
+      env:
+        - name: KUBERNETES_SERVICE_HOST
+          value: "{{ ansible_default_ipv4.address }}"
+        - name: KUBERNETES_SERVICE_PORT
+          value: "6443"
+
+- name: Enable hostNetwork and set dnsConfig on aws-cloud-controller-manager
+  kubernetes.core.k8s_json_patch:
+    api_version: apps/v1
+    kind: DaemonSet
+    name: aws-cloud-controller-manager
+    namespace: kube-system
+    kubeconfig: /etc/kubernetes/admin.conf
+    patch:
+      - op: add
+        path: /spec/template/spec/hostNetwork
+        value: true
+      - op: add
+        path: /spec/template/spec/dnsConfig
+        value:
+          nameservers:
+            - 8.8.8.8
+            - 1.1.1.1

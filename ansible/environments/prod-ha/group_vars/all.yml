@@ -5,4 +5,4 @@ service_subnet: "10.96.0.0/12"
 calico_version: "v3.32.1"
 
 # AWS Network Load Balancer DNS pointing to the 3 master nodes on port 6443
-control_plane_endpoint: "k8s-api-nlb-0cb85ebe0c2fc1b1.elb.us-west-2.amazonaws.com:6443"
+control_plane_endpoint: "k8s-api-nlb-66ed0331ac1adf1b.elb.us-west-2.amazonaws.com:6443"
