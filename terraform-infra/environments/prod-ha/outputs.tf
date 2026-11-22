@@ -48,3 +48,8 @@ output "server_ips" {
     worker_nodes = module.servers.worker_nodes_private_ips
   }
 }
+
+output "control_plane_endpoint" {
+  description = "Kubernetes API server endpoint (NLB DNS for HA, master private IP for single-master)"
+  value       = var.control_plane_count > 1 ? "${aws_lb.k8s_api[0].dns_name}:6443" : "${module.servers.control_plane_private_ips_list[0]}:6443"
+}

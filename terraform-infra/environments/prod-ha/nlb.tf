@@ -4,9 +4,10 @@ resource "aws_lb" "k8s_api" {
   name                             = "k8s-api-nlb"
   internal                         = true
   load_balancer_type               = "network"
-  subnets                          = var.control_plane_subnet_id
+  subnets                          = [module.subnets.control_plane_subnet_id]
   enable_cross_zone_load_balancing = true
 }
+
 
 # 2. Target Group for Kubernetes API Server (TCP 6443)
 resource "aws_lb_target_group" "k8s_api" {
@@ -14,7 +15,7 @@ resource "aws_lb_target_group" "k8s_api" {
   name        = "k8s-api-tg"
   port        = 6443
   protocol    = "TCP"
-  vpc_id      = var.vpc_id
+  vpc_id      = module.vpc.vpc_id
   target_type = "ip"
 
   health_check {
@@ -42,11 +43,7 @@ resource "aws_lb_listener" "k8s_api" {
 resource "aws_lb_target_group_attachment" "control_plane" {
   count            = var.control_plane_count > 1 ? var.control_plane_count : 0
   target_group_arn = aws_lb_target_group.k8s_api[0].arn
-  target_id        = aws_instance.control_plane[count.index].private_ip
+  target_id        = module.servers.control_plane_private_ips_list[count.index]
   port             = 6443
 }
 
-# Automatically output either the NLB DNS (HA) or the single master IP (Dev)
-output "control_plane_endpoint" {
-  value = var.control_plane_count > 1 ? "${aws_lb.k8s_api[0].dns_name}:6443" : "${aws_instance.control_plane[0].private_ip}:6443"
-}

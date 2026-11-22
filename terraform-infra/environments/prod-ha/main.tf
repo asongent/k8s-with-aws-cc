@@ -9,6 +9,7 @@ module "vpc" {
 module "subnets" {
   source                    = "../../modules/subnets"
   vpc_id                    = module.vpc.vpc_id
+  availability_zone         = var.availability_zone
   internet_gateway_id       = module.vpc.igw_id
   control_plane_cidr        = var.control_plane_cidr
   data_plane_cidr           = var.data_plane_cidr

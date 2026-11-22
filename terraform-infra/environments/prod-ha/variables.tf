@@ -1,7 +1,7 @@
 variable "aws_region" {
   default = ""
 }
-variable "vpc_id" {}
+
 variable "vpc_name" {}
 variable "vpc_cidr" {}
 
@@ -31,12 +31,9 @@ variable "role_name" {}
 variable "policy_name" {}
 variable "instance_profile_name" {}
 
-
-variable "control_plane_subnet_id" {}
 variable "control_plane_count" {
   description = "Number of Kubernetes control plane nodes (use 1 for dev, 3 for HA)"
   type        = number
-  default     = 1
 }
 
 variable "data_plane_count" {
@@ -44,3 +41,5 @@ variable "data_plane_count" {
   type        = number
   default     = 1
 }
+
+variable "availability_zone" {}

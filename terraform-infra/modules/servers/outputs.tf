@@ -22,3 +22,9 @@ output "worker_nodes_private_ips" {
     for instance in aws_instance.nodes : instance.tags["Name"] => instance.private_ip
   }
 }
+
+
+output "control_plane_private_ips_list" {
+  description = "Ordered list of private IPs for control plane instances"
+  value       = aws_instance.control_plane[*].private_ip
+}

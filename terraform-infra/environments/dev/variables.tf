@@ -20,6 +20,7 @@ variable "control_plane_sg_name" {}
 variable "data_plane_sg_name" {}
 variable "workstation_sg_name" {}
 variable "private_key_path" {}
+
 # variable "openvpn_sg_name" {}
 
 # variable "internet_gateway_id" {

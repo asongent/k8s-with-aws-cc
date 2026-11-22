@@ -10,6 +10,8 @@ vpc_cidr           = "192.168.0.0/16"
 control_plane_cidr = "192.168.1.0/24"
 data_plane_cidr    = "192.168.2.0/24"
 workstation_cidr   = "192.168.3.0/24"
+availability_zone  = "us-west-2a"
+
 
 control_plane_subnet_name = "cocontrol-plane-dev"
 data_plane_subnet_name    = "data_plane-dev"
