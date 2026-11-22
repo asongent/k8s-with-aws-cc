@@ -9,7 +9,7 @@ volumeBindingMode: WaitForFirstConsumer
 parameters:
   type: gp3
 reclaimPolicy: Delete # Retain  
-# Type if reclaim policy depends on your use case. 
+# Type of reclaim policy depends on your use case. 
 # If you want to retain the data after deleting the PVC, use Retain. 
 # If you want to delete the data along with the PVC, use Delete.
 allowVolumeExpansion: true

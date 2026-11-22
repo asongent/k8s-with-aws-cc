@@ -1,3 +1,4 @@
+
 k8s_repo_version: "v1.36"
 k8s_version: "v1.36.4"
 pod_subnet: "10.244.0.0/16"

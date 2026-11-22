@@ -1,4 +1,5 @@
 ---
+
 - name: 1. Prepare OS prerequisites on all hosts
   hosts: all
   become: true
