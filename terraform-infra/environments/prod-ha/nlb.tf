@@ -11,12 +11,12 @@ resource "aws_lb" "k8s_api" {
 
 # 2. Target Group for Kubernetes API Server (TCP 6443)
 resource "aws_lb_target_group" "k8s_api" {
-  count       = var.control_plane_count > 1 ? 1 : 0
-  name        = "k8s-api-tg"
-  port        = 6443
-  protocol    = "TCP"
-  vpc_id      = module.vpc.vpc_id
-  target_type = "ip"
+  count              = var.control_plane_count > 1 ? 1 : 0
+  name               = "k8s-api-tg"
+  port               = 6443
+  protocol           = "TCP"
+  vpc_id             = module.vpc.vpc_id
+  target_type        = "ip"
   preserve_client_ip = false
 
   health_check {

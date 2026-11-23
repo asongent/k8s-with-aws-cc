@@ -9,11 +9,10 @@ data "aws_ami" "ubuntu_2404" {
 }
 
 # Workstation
-# Workstation
 resource "aws_instance" "workstation" {
   ami                         = data.aws_ami.ubuntu_2404.id
   key_name                    = var.key_pair
-  instance_type               = "t3.medium"
+  instance_type               = var.workstation_instance_type
   subnet_id                   = var.workstation_subnet_id
   vpc_security_group_ids      = [var.workstation_sg_id]
   associate_public_ip_address = true
@@ -94,7 +93,7 @@ resource "aws_instance" "workstation" {
 resource "aws_instance" "control_plane" {
   count                       = var.control_plane_count
   ami                         = data.aws_ami.ubuntu_2404.id
-  instance_type               = "t3.medium"
+  instance_type               = var.control_plane_instance_type
   key_name                    = var.key_pair       
   subnet_id                   = var.control_plane_subnet_id
   vpc_security_group_ids      = [var.control_plane_sg_id]
@@ -112,7 +111,7 @@ resource "aws_instance" "nodes" {
   count                       = var.data_plane_count
   ami                         = data.aws_ami.ubuntu_2404.id
   key_name                    = var.key_pair
-  instance_type               = "t3.medium"
+  instance_type               = var.data_plan_instance_type
   subnet_id                   = var.data_plane_subnet_id
   vpc_security_group_ids      = [var.data_plane_sg_id]
   associate_public_ip_address = false

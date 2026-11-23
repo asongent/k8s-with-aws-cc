@@ -13,9 +13,13 @@ workstation_cidr   = "192.168.3.0/24"
 availability_zone  = "us-west-2a"
 
 
-control_plane_subnet_name = "cocontrol-plane-dev"
-data_plane_subnet_name    = "data_plane-dev"
-workstation_subnet_name   = "workstion-dev"
+control_plane_subnet_name    = "cocontrol-plane-dev"
+data_plane_subnet_name       = "data_plane-dev"
+workstation_subnet_name      = "workstion-dev"
+
+workstation_instance_type    = "t3.medium"
+control_plane_instance_type  = "t3.medium"
+data_plan_instance_type      = "t3.medium"
 
 role_name             = "service-dev-role"
 policy_name           = "service-dev-policy"

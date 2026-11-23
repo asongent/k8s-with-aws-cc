@@ -38,17 +38,20 @@ module "iam" {
 }
 
 module "servers" {
-  source                  = "../../modules/servers"
-  control_plane_count     = var.control_plane_count
-  data_plane_count        = var.data_plane_count
-  key_pair                = var.key_pair
-  workstation_subnet_id   = module.subnets.workstation_subnet_id
-  control_plane_subnet_id = module.subnets.control_plane_subnet_id
-  data_plane_subnet_id    = module.subnets.data_plane_subnet_id
-  workstation_sg_id       = module.security_groups.workstation_sg_id
-  control_plane_sg_id     = module.security_groups.control_plane_sg_id
-  data_plane_sg_id        = module.security_groups.data_plane_sg_id
-  instance_profile_name   = module.iam.instance_profile_name
-  depends_on              = [module.iam, module.subnets, module.security_groups]
-  private_key_path        = var.private_key_path
+  source                       = "../../modules/servers"
+  control_plane_count          = var.control_plane_count
+  data_plane_count             = var.data_plane_count
+  key_pair                     = var.key_pair
+  workstation_subnet_id        = module.subnets.workstation_subnet_id
+  control_plane_subnet_id      = module.subnets.control_plane_subnet_id
+  data_plane_subnet_id         = module.subnets.data_plane_subnet_id
+  workstation_sg_id            = module.security_groups.workstation_sg_id
+  control_plane_sg_id          = module.security_groups.control_plane_sg_id
+  data_plane_sg_id             = module.security_groups.data_plane_sg_id
+  instance_profile_name        = module.iam.instance_profile_name
+  depends_on                   = [module.iam, module.subnets, module.security_groups]
+  private_key_path             = var.private_key_path
+  workstation_instance_type    = var.workstation_instance_type
+  control_plane_instance_type  = var.control_plane_instance_type
+  data_plan_instance_type      = var.data_plan_instance_type
 }
